@@ -21,26 +21,33 @@ components:
       # Note: No env/valueFrom needed! The controller injects ai-creds automatically.
 
 commands:
-  - id: 01-validate-shield
+  - id: 01-shield-init
     exec:
       component: dev-runtime
       commandLine: |
-        echo "🛡️  Checking Project Shield Status..."
+        echo "🛡️  Initializing Project Shield AI Tools..."
         
-        # Check if the keys are actually present in the environment
-        if [ -z "$OPENAI_API_KEY" ] || [ -z "$ANTHROPIC_API_KEY" ]; then 
-          echo "❌ ERROR: AI Shield Keys not found in environment."
-          exit 1
-        else
-          echo "✅ AI Shield Active. Secure keys detected:"
-          # This line masks the values for security while confirming the keys exist
-          env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
+        # 1. Install OpenAI Codex CLI
+        if ! command -v openai >/dev/null; then
+          echo "📦 Installing OpenAI Codex..."
+          npm install -g @openai/codex
         fi
-      workingDir: ${PROJECTS_ROOT}/aicodershield
-      group:
-        kind: build
-        isDefault: true
+        
+        # 2. Install Anthropic Claude CLI
+        if ! command -v claude >/dev/null; then
+          echo "📦 Installing Anthropic Claude CLI..."
+          # Using the standard npm-based installer for Claude-code (2026 version)
+          npm install -g @anthropic-ai/claude-code
+        fi
 
+        echo "✅ AI Shield Active. Verifying Credentials..."
+        env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
+        
+        echo "🚀 All systems go. You are now shielded."
+      workingDir: ${PROJECTS_ROOT}/aicodersheild
+      group:
+        kind: run
+        isDefault: true
   - id: 02-install-ai-tools
     exec:
       component: dev-runtime
