@@ -15,7 +15,7 @@ projects:
 components:
   - name: dev-runtime
     container:
-      image: quay.io/devspaces/universal-developer-image:latest
+      image: registry.redhat.io/devspaces/udi-rhel9:latest
       memoryLimit: 8Gi
       mountSources: true
       # Note: No env/valueFrom needed! The controller injects ai-creds automatically.
