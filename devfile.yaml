@@ -8,7 +8,9 @@ projects:
   - name: aicodershield
     git:
       remotes:
-        origin: "https://github.com/jmaira-redhat/aicodershield.git"
+        origin: "https://github.com/jmaira-redhat/aicodersheild.git"
+      # Adding checkoutStrategy ensures the cloner doesn't get stuck
+      
 
 components:
   - name: dev-runtime
