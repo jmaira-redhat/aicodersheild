@@ -1,63 +1,50 @@
 schemaVersion: 2.2.0
 metadata:
-  name: aicodersheild-workspace
-  description: "Enterprise Governed AI Workspace: NestJS, React, Cloud Code, Codex & Claude"
+  name: aicodershield-workspace
+  display-name: "AI Project Shield - Secure Workspace"
+  description: "Governance-backed AI development environment with automated key injection."
+
 projects:
-  - name: aicodersheild
+  - name: aicodershield
     git:
       remotes:
-        origin: "https://github.com/jmaira-redhat/aicodersheild.git"
+        origin: "https://github.com/jmaira-redhat/aicodershield.git"
+
 components:
   - name: dev-runtime
     container:
       image: quay.io/devspaces/universal-developer-image:latest
-      memoryLimit: 8Gi # Essential for running local AI agents + Nest + React
-      cpuLimit: "4"
+      memoryLimit: 8Gi
       mountSources: true
-      env:
-        # These are injected from OpenShift Secrets (Governed at the Project level)
-        - name: OPENAI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: ai-shield-creds
-              key: OPENAI_API_KEY
-        - name: ANTHROPIC_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: ai-shield-creds
-              key: ANTHROPIC_API_KEY
-      endpoints:
-        - name: react-frontend
-          targetPort: 3000
-        - name: nest-backend
-          targetPort: 3001
+      # Note: No env/valueFrom needed! The controller injects ai-creds automatically.
+
 commands:
-  - id: install-tools
+  - id: 01-validate-shield
     exec:
       component: dev-runtime
       commandLine: |
-        # 1. Install Project Dependencies
-        npm install
+        echo "🛡️  Checking Project Shield Status..."
         
-        # 2. Install OpenAI Codex CLI (v0.111.0 - GPT-5.4 Spark optimized)
-        npm install -g @openai/codex
-        
-        # 3. Install Claude Code (Native 2026 Installer)
-        curl -fsSL https://claude.ai/install.sh | bash
-        
-        # 4. Install Cloud Code / Google Cloud SDK
-        curl https://sdk.cloud.google.com | bash
-        source $HOME/google-cloud-sdk/path.bash.inc
-      workingDir: ${PROJECTS_ROOT}/aicodersheild
+        # Check if the keys are actually present in the environment
+        if [ -z "$OPENAI_API_KEY" ] || [ -z "$ANTHROPIC_API_KEY" ]; then 
+          echo "❌ ERROR: AI Shield Keys not found in environment."
+          exit 1
+        else
+          echo "✅ AI Shield Active. Secure keys detected:"
+          # This line masks the values for security while confirming the keys exist
+          env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
+        fi
+      workingDir: ${PROJECTS_ROOT}/aicodershield
       group:
         kind: build
         isDefault: true
 
-  - id: start-dev-stack
+  - id: 02-install-ai-tools
     exec:
       component: dev-runtime
-      commandLine: "npm run start:dev" 
-      workingDir: ${PROJECTS_ROOT}/aicodersheild
-      group:
-        kind: run
-        isDefault: true
+      commandLine: |
+        echo "Installing Department-approved AI CLI tools..."
+        npm install -g @openai/codex
+        # Example for 2026 AI toolchains
+        curl -fsSL https://claude.ai/install.sh | bash
+      workingDir: ${PROJECTS_ROOT}/aicodershield
