@@ -27,34 +27,31 @@ commands:
       commandLine: |
         echo "🛡️  Configuring Project Shield Environment..."
         
-        # 1. Fix Permissions: Redirect NPM to home directory
+        # 1. Path & Permissions Setup
         mkdir -p ${HOME}/.local/bin
         npm config set prefix ${HOME}/.local
         export PATH="${HOME}/.local/bin:$PATH"
 
-        # 2. Install OpenAI Codex CLI
-        if ! command -v openai >/dev/null; then
-          echo "📦 Installing OpenAI Codex..."
-          npm install -g @openai/codex
-        fi
-        
-        # 3. Install Anthropic Claude CLI
+        # 2. Tool Installation
         if ! command -v claude >/dev/null; then
-          echo "📦 Installing Anthropic Claude CLI..."
+          echo "📦 Installing Claude Code CLI..."
           npm install -g @anthropic-ai/claude-code
         fi
 
-        echo "✅ AI Shield Active. Verifying Status..."
+        # 3. Final Verification
+        echo "✅ AI Shield Active."
         
-        # Verify Binary Path
-        echo "📍 Claude Path: $(which claude)"
-        claude --version
-        
-        # Verify Credentials
-        echo "🔑 Injected Keys:"
+        # 4. Trigger IDE Notification (The Pop-up)
+        if command -v code >/dev/null; then
+          code --status > /dev/null 2>&1 && \
+          code -n --wait --status > /dev/null 2>&1 || \
+          echo "Notifying IDE..."
+          # This triggers the VS Code toast notification
+          /usr/bin/code --messaging "🛡️ Project Shield Active: AI Keys Injected & Tools Ready!"
+        fi
+
+        # Output keys to terminal for manual check
         env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
-        
-        echo "🚀 All systems go. You are now shielded."
       workingDir: ${PROJECTS_ROOT}/aicodersheild
       group:
         kind: run
