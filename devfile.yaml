@@ -25,22 +25,33 @@ commands:
     exec:
       component: dev-runtime
       commandLine: |
-        echo "🛡️  Initializing Project Shield AI Tools..."
+        echo "🛡️  Configuring Project Shield Environment..."
         
-        # 1. Install OpenAI Codex CLI
+        # 1. Fix Permissions: Redirect NPM to home directory
+        mkdir -p ${HOME}/.local/bin
+        npm config set prefix ${HOME}/.local
+        export PATH="${HOME}/.local/bin:$PATH"
+
+        # 2. Install OpenAI Codex CLI
         if ! command -v openai >/dev/null; then
           echo "📦 Installing OpenAI Codex..."
           npm install -g @openai/codex
         fi
         
-        # 2. Install Anthropic Claude CLI
+        # 3. Install Anthropic Claude CLI
         if ! command -v claude >/dev/null; then
           echo "📦 Installing Anthropic Claude CLI..."
-          # Using the standard npm-based installer for Claude-code (2026 version)
           npm install -g @anthropic-ai/claude-code
         fi
 
-        echo "✅ AI Shield Active. Verifying Credentials..."
+        echo "✅ AI Shield Active. Verifying Status..."
+        
+        # Verify Binary Path
+        echo "📍 Claude Path: $(which claude)"
+        claude --version
+        
+        # Verify Credentials
+        echo "🔑 Injected Keys:"
         env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
         
         echo "🚀 All systems go. You are now shielded."
