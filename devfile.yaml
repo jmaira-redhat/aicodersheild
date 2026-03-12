@@ -4,13 +4,16 @@ metadata:
   display-name: "AI Project Shield - Secure Workspace"
   description: "Governance-backed AI development environment with automated key injection."
 
+# 1. Automate the Shield on Startup
+events:
+  postStart:
+    - 01-shield-init
+
 projects:
   - name: aicodershield
     git:
       remotes:
         origin: "https://github.com/jmaira-redhat/aicodersheild.git"
-      # Adding checkoutStrategy ensures the cloner doesn't get stuck
-      
 
 components:
   - name: dev-runtime
@@ -18,7 +21,6 @@ components:
       image: registry.redhat.io/devspaces/udi-rhel9:latest
       memoryLimit: 8Gi
       mountSources: true
-      # Note: No env/valueFrom needed! The controller injects ai-creds automatically.
 
 commands:
   - id: 01-shield-init
@@ -27,41 +29,42 @@ commands:
       commandLine: |
         echo "🛡️  Configuring Project Shield Environment..."
         
-        # 1. Path & Permissions Setup
+        # 1. Path & Permissions Setup (Localizing NPM to avoid Read-Only errors)
         mkdir -p ${HOME}/.local/bin
         npm config set prefix ${HOME}/.local
         export PATH="${HOME}/.local/bin:$PATH"
+        
+        # Make PATH persistent for all future terminal sessions
+        if ! grep -q ".local/bin" ${HOME}/.bashrc; then
+          echo 'export PATH="${HOME}/.local/bin:$PATH"' >> ${HOME}/.bashrc
+        fi
 
-        # 2. Tool Installation
+        # 2. Tool Installation (Consolidated)
         if ! command -v claude >/dev/null; then
-          echo "📦 Installing Claude Code CLI..."
+          echo "📦 Installing Anthropic Claude CLI..."
           npm install -g @anthropic-ai/claude-code
         fi
 
-        # 3. Final Verification
+        if ! command -v openai >/dev/null; then
+          echo "📦 Installing OpenAI Codex..."
+          npm install -g @openai/codex
+        fi
+
+        # 3. Final Verification & Shield Status
         echo "✅ AI Shield Active."
+        echo "📍 CLI Version: $(claude --version 2>/dev/null || echo 'Claude ready')"
         
         # 4. Trigger IDE Notification (The Pop-up)
-        if command -v code >/dev/null; then
-          code --status > /dev/null 2>&1 && \
-          code -n --wait --status > /dev/null 2>&1 || \
-          echo "Notifying IDE..."
-          # This triggers the VS Code toast notification
+        if [ -f "/usr/bin/code" ]; then
           /usr/bin/code --messaging "🛡️ Project Shield Active: AI Keys Injected & Tools Ready!"
         fi
 
-        # Output keys to terminal for manual check
+        # 5. Output masked keys for the Project Lead/Member verification
+        echo "🔑 Governance Check (Injected Keys):"
         env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
+        
+        echo "🚀 Workspace Ready. Happy Coding!"
       workingDir: ${PROJECTS_ROOT}/aicodersheild
       group:
         kind: run
         isDefault: true
-  - id: 02-install-ai-tools
-    exec:
-      component: dev-runtime
-      commandLine: |
-        echo "Installing Department-approved AI CLI tools..."
-        npm install -g @openai/codex
-        # Example for 2026 AI toolchains
-        curl -fsSL https://claude.ai/install.sh | bash
-      workingDir: ${PROJECTS_ROOT}/aicodershield
