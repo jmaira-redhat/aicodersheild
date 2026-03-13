@@ -54,40 +54,19 @@ commands:
         fi
 
         # ── 3. Claude Code Zero-Touch Configuration ───────────────────────────
+        # ANTHROPIC_API_KEY is injected by OpenShift at container level.
+        # We use it directly — no apiKeyHelper needed, no conflict.
         echo "🔧 Configuring Claude Code..."
 
-        # Rename the OpenShift-injected key to CLAUDE_API_KEY_INJECTED so it
-        # is available for apiKeyHelper at runtime, but does NOT clash with
-        # ANTHROPIC_API_KEY which Claude Code watches for and conflicts with.
         if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
           echo "⚠️  WARNING: ANTHROPIC_API_KEY is not set. Claude Code will not work."
           echo "   Ensure the key is injected as an OpenShift secret/env variable."
         else
-          # Carry the value forward under a neutral name
-          export CLAUDE_API_KEY_INJECTED="${ANTHROPIC_API_KEY}"
-
-          # Persist the rename into .bashrc so every developer terminal has it
-          if ! grep -q "CLAUDE_API_KEY_INJECTED" ${HOME}/.bashrc; then
-            echo "export CLAUDE_API_KEY_INJECTED=\"${ANTHROPIC_API_KEY}\"" >> ${HOME}/.bashrc
-          fi
-
-          # Remove ANTHROPIC_API_KEY from .bashrc and current env to avoid conflict
-          unset ANTHROPIC_API_KEY
-          sed -i '/ANTHROPIC_API_KEY/d' ${HOME}/.bashrc 2>/dev/null || true
-
           mkdir -p ${HOME}/.claude
-
-          # apiKeyHelper echoes CLAUDE_API_KEY_INJECTED at runtime — no conflict
-          printf '{\n  "apiKeyHelper": "echo $CLAUDE_API_KEY_INJECTED"\n}\n' \
-            > ${HOME}/.claude/settings.json
-
-          # Fingerprint the key (last 20 chars) to pre-approve it
-          LAST20="${CLAUDE_API_KEY_INJECTED: -20}"
-          printf '{\n  "hasCompletedOnboarding": true,\n  "customApiKeyResponses": {\n    "approved": ["%s"],\n    "rejected": []\n  }\n}\n' \
-            "${LAST20}" > ${HOME}/.claude.json
-
-          echo "✅ Claude Code configured (zero-touch, no credentials on disk)."
-          echo "   settings.json: $(cat ${HOME}/.claude/settings.json)"
+          LAST20="${ANTHROPIC_API_KEY: -20}"
+          echo '{"hasCompletedOnboarding": true}' > ${HOME}/.claude/settings.json
+          echo "{\"hasCompletedOnboarding\": true, \"customApiKeyResponses\": {\"approved\": [\"${LAST20}\"], \"rejected\": []}}" > ${HOME}/.claude.json
+          echo "✅ Claude Code configured — using ANTHROPIC_API_KEY from environment."
         fi
 
         # ── 4. Final Verification & Shield Status ─────────────────────────────
@@ -101,7 +80,7 @@ commands:
 
         # ── 6. Governance Check — masked key output for verification ──────────
         echo "🔑 Governance Check (Injected Keys):"
-        env | grep -E 'OPENAI|CLAUDE_API_KEY_INJECTED' | awk -F= '{print "   " $1 "=****************"}'
+        env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
 
         echo "🚀 Workspace Ready. Happy Coding!"
       workingDir: ${PROJECTS_ROOT}/aicodershield
