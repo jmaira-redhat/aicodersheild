@@ -4,7 +4,6 @@ metadata:
   display-name: "AI Project Shield - Secure Workspace"
   description: "Governance-backed AI development environment with automated key injection."
 
-# 1. Automate the Shield on Startup
 events:
   postStart:
     - 01-shield-init
@@ -28,6 +27,7 @@ commands:
     exec:
       component: dev-runtime
       commandLine: |
+        set -e
         echo "🛡️  Configuring Project Shield Environment..."
 
         # ── 1. Path & Permissions Setup ───────────────────────────────────────
@@ -40,12 +40,15 @@ commands:
         fi
 
         # ── 2. Tool Installation ──────────────────────────────────────────────
-        if ! command -v claude >/dev/null; then
+        if ! command -v claude >/dev/null 2>&1; then
           echo "📦 Installing Anthropic Claude Code..."
           npm install -g @anthropic-ai/claude-code
+          echo "✅ Claude Code installed: $(claude --version)"
+        else
+          echo "✅ Claude Code already installed: $(claude --version)"
         fi
 
-        if ! command -v openai >/dev/null; then
+        if ! command -v openai >/dev/null 2>&1; then
           echo "📦 Installing OpenAI Codex..."
           npm install -g @openai/codex
         fi
@@ -59,34 +62,24 @@ commands:
         else
           mkdir -p ${HOME}/.claude
 
-          # settings.json — quoted heredoc ('SETTINGS_EOF') prevents shell expansion
-          # inside the block, so $ANTHROPIC_API_KEY stays as a literal and is
-          # evaluated at runtime each time the developer runs claude.
-          cat > ${HOME}/.claude/settings.json << 'SETTINGS_EOF'
-{
-  "apiKeyHelper": "echo $ANTHROPIC_API_KEY"
-}
-SETTINGS_EOF
+          # Use printf to avoid heredoc issues in devfile commandLine.
+          # Single-quoted string keeps $ANTHROPIC_API_KEY literal so it is
+          # evaluated at runtime each time the developer invokes claude.
+          printf '{\n  "apiKeyHelper": "echo $ANTHROPIC_API_KEY"\n}\n' \
+            > ${HOME}/.claude/settings.json
 
-          # ~/.claude.json — unquoted heredoc (CLAUDE_EOF) so the key fingerprint
-          # variable is expanded NOW at onboarding time, not at runtime.
-          ANTHROPIC_API_KEY_LAST_20="${ANTHROPIC_API_KEY: -20}"
-          cat > ${HOME}/.claude.json << CLAUDE_EOF
-{
-  "hasCompletedOnboarding": true,
-  "customApiKeyResponses": {
-    "approved": ["${ANTHROPIC_API_KEY_LAST_20}"],
-    "rejected": []
-  }
-}
-CLAUDE_EOF
+          # Build ~/.claude.json using printf with the fingerprint expanded now.
+          LAST20="${ANTHROPIC_API_KEY: -20}"
+          printf '{\n  "hasCompletedOnboarding": true,\n  "customApiKeyResponses": {\n    "approved": ["%s"],\n    "rejected": []\n  }\n}\n' \
+            "${LAST20}" > ${HOME}/.claude.json
 
           echo "✅ Claude Code configured (zero-touch, no credentials on disk)."
+          echo "   settings.json: $(cat ${HOME}/.claude/settings.json)"
         fi
 
         # ── 4. Final Verification & Shield Status ─────────────────────────────
         echo "✅ AI Shield Active."
-        echo "📍 Claude version: $(claude --version 2>/dev/null || echo 'Claude ready')"
+        echo "📍 Claude version: $(claude --version 2>/dev/null || echo 'not found - check PATH')"
 
         # ── 5. IDE Notification ───────────────────────────────────────────────
         if [ -f "/usr/bin/code" ]; then
@@ -98,7 +91,7 @@ CLAUDE_EOF
         env | grep -E 'OPENAI|ANTHROPIC' | awk -F= '{print "   " $1 "=****************"}'
 
         echo "🚀 Workspace Ready. Happy Coding!"
-      workingDir: ${PROJECTS_ROOT}/aicodersheild
+      workingDir: ${PROJECTS_ROOT}/aicodershield
       group:
         kind: run
         isDefault: true
